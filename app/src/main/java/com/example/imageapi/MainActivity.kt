@@ -7,12 +7,15 @@ import android.widget.ImageView
 import android.widget.SearchView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.reflect.typeOf
 
 
 class MainActivity : AppCompatActivity() {
@@ -22,6 +25,8 @@ class MainActivity : AppCompatActivity() {
     private var searchView : SearchView? = null
 
     private var imageWindow : ImageView? = null
+
+    private var recyclerView : RecyclerView? = null
 
     private lateinit var db : AppDatabase
 
@@ -37,28 +42,25 @@ class MainActivity : AppCompatActivity() {
 
         searchView = findViewById(R.id.searchView)
 
-        imageWindow = findViewById(R.id.imageWindow)
+        recyclerView = findViewById(R.id.recyclerView)
+
+        recyclerView?.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
 
         searchView?.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String): Boolean {
 
                 var queryWord = query
 
-               /* val urlList : List<String> = stringToList(getImages(queryWord))
-
-                imageWindow?.let { imageView ->
-                    Glide.with(applicationContext).load(urlList[0]).into(imageView)
-                }*/
-
-                getImages(queryWord) { urlList ->
+                getImages(queryWord) { urlList, fromDB ->
 
                     Log.v(TAG, "inside runAsync")
                     Log.v(TAG, urlList.toString())
 
-                    imageWindow?.let { imageView ->
-                        val urlItems: List<String> = Gson().fromJson(urlList[0], object : TypeToken<List<String>> () {}.type)
-                        Glide.with(applicationContext).load(urlItems[0]).into(imageView)
-                    }
+                    var urlItems : List<String> = urlList
+
+                    if (fromDB) urlItems = Gson().fromJson(urlList[0], object : TypeToken<List<String>> () {}.type) // db se aaya
+
+                    recyclerView?.adapter = CustomAdapter(urlItems)
                 }
 
                 return true
@@ -70,10 +72,9 @@ class MainActivity : AppCompatActivity() {
 
         })
 
-        //getImages("dog")
     }
 
-    private fun getImages(queryWord: String, runAsync: (List<String>) -> Unit){
+    private fun getImages(queryWord: String, runAsync: (List<String>, Boolean) -> Unit){
         var result = db.imageListDao().findByWord(queryWord)
 
         if (result.isEmpty()) {
@@ -101,7 +102,7 @@ class MainActivity : AppCompatActivity() {
 
                                 db.imageListDao().insert(ImageList(0, queryWord, result))
 
-                                runAsync(result)
+                                runAsync(result, false)
 
                             }
 
@@ -128,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         }else{
             Log.v(TAG, "DB ka result -> ${result.toString()}")
 
-            runAsync(result)
+            runAsync(result, true)
         }
     }
 
@@ -158,10 +159,5 @@ class MainActivity : AppCompatActivity() {
             Toast.LENGTH_SHORT
         ).show()
     }
-
-//    fun runAsync(callback: (List<String>) -> Unit){
-//
-//    }
-
 
 }
